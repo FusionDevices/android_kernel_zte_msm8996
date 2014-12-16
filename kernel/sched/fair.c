@@ -2579,11 +2579,11 @@ static inline u64 __synchronize_entity_decay(struct sched_entity *se)
 	u64 last_update_time;
 
 	decays -= se->avg.decay_count;
+	se->avg.decay_count = 0;
 	if (!decays)
 		return 0;
 
 	se->avg.load_avg_contrib = decay_load(se->avg.load_avg_contrib, decays);
-	se->avg.decay_count = 0;
 
 	return decays;
 }

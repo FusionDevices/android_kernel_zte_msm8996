@@ -816,7 +816,8 @@ static void __perf_mux_hrtimer_init(struct perf_cpu_context *cpuctx, int cpu)
 
 	cpuctx->hrtimer_interval = ns_to_ktime(NSEC_PER_MSEC * interval);
 
-	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+	raw_spin_lock_init(&cpuctx->hrtimer_lock);
+	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
 	timer->function = perf_mux_hrtimer_handler;
 }
 
@@ -830,10 +831,14 @@ static int perf_mux_hrtimer_restart(struct perf_cpu_context *cpuctx)
 	if (pmu->task_ctx_nr == perf_sw_context)
 		return 0;
 
-	if (hrtimer_is_queued(timer))
-		return 0;
+	raw_spin_lock_irqsave(&cpuctx->hrtimer_lock, flags);
+	if (!cpuctx->hrtimer_active) {
+		cpuctx->hrtimer_active = 1;
+		hrtimer_forward_now(timer, cpuctx->hrtimer_interval);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS_PINNED);
+	}
+	raw_spin_unlock_irqrestore(&cpuctx->hrtimer_lock, flags);
 
-	hrtimer_start(timer, cpuctx->hrtimer_interval, HRTIMER_MODE_REL_PINNED);
 	return 0;
 }
 

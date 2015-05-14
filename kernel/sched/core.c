@@ -126,17 +126,15 @@ void su_exit(void)
 	atomic_dec(&__su_instances);
 }
 
-void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
-{
-	/*
-	 * Do not forward the expiration time of active timers;
-	 * we do not want to loose an overrun.
-	 */
-	if (!hrtimer_active(period_timer))
-		hrtimer_forward_now(period_timer, period);
+const char *task_event_names[] = {"PUT_PREV_TASK", "PICK_NEXT_TASK",
+				  "TASK_WAKE", "TASK_MIGRATE", "TASK_UPDATE",
+				"IRQ_UPDATE"};
 
-	hrtimer_start_expires(period_timer, HRTIMER_MODE_ABS_PINNED);
-}
+const char *migrate_type_names[] = {"GROUP_TO_RQ", "RQ_TO_GROUP",
+					 "RQ_TO_RQ", "GROUP_TO_GROUP"};
+
+ATOMIC_NOTIFIER_HEAD(migration_notifier_head);
+ATOMIC_NOTIFIER_HEAD(load_alert_notifier_head);
 
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);

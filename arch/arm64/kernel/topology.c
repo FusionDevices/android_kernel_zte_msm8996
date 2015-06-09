@@ -220,6 +220,33 @@ out:
 struct cpu_topology cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
+/* sd energy functions */
+static inline
+const struct sched_group_energy * const cpu_cluster_energy(int cpu)
+{
+	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL1];
+
+	if (!sge) {
+		pr_warn("Invalid sched_group_energy for Cluster%d\n", cpu);
+		return NULL;
+	}
+
+	return sge;
+}
+
+static inline
+const struct sched_group_energy * const cpu_core_energy(int cpu)
+{
+	struct sched_group_energy *sge = sge_array[cpu][SD_LEVEL0];
+
+	if (!sge) {
+		pr_warn("Invalid sched_group_energy for CPU%d\n", cpu);
+		return NULL;
+	}
+
+	return sge;
+}
+
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	unsigned long capacity = SCHED_CAPACITY_SCALE;
@@ -234,6 +261,20 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	pr_debug("CPU%d: update cpu_capacity %lu\n",
 		cpu, arch_scale_cpu_capacity(NULL, cpu));
 }
+
+static inline int cpu_corepower_flags(void)
+{
+	return SD_SHARE_PKG_RESOURCES  | SD_SHARE_POWERDOMAIN | \
+	       SD_SHARE_CAP_STATES;
+}
+
+static struct sched_domain_topology_level arm64_topology[] = {
+#ifdef CONFIG_SCHED_MC
+	{ cpu_coregroup_mask, cpu_corepower_flags, cpu_core_energy, SD_INIT_NAME(MC) },
+#endif
+	{ cpu_cpu_mask, NULL, cpu_cluster_energy, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
 
 static void update_cpu_capacity(unsigned int cpu)
 {
@@ -339,4 +380,8 @@ void __init init_cpu_topology(void)
 	 */
 	if (parse_dt_topology())
 		reset_cpu_topology();
+	else
+		set_sched_topology(arm64_topology);
+
+	init_sched_energy_costs();
 }

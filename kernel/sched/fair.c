@@ -4199,7 +4199,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
-	int task_new = !(flags & ENQUEUE_WAKEUP);
+	int task_new = flags & ENQUEUE_WAKEUP_NEW;
+	int task_wakeup = flags & ENQUEUE_WAKEUP;
 
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
@@ -4251,12 +4252,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		 * because we get here also during load balancing, but
 		 * in these cases it seems wise to trigger as single
 		 * request after load balancing is done.
-		 *
-		 * XXX: how about fork()? Do we need a special
-		 *      flag/something to tell if we are here after a
-		 *      fork() (wakeup_task_new)?
 		 */
-		if (!task_new)
+		if (task_new || task_wakeup)
 			update_capacity_of(cpu_of(rq));
 	}
 	hrtick_update(rq);

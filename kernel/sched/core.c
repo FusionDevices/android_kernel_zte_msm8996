@@ -5897,6 +5897,10 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 				SD_PREFER_SIBLING |
 				SD_SHARE_POWERDOMAIN |
 				SD_SHARE_CAP_STATES);
+		if (parent->groups->sge) {
+			parent->flags &= ~SD_LOAD_BALANCE;
+			return 0;
+		}
 		if (nr_node_ids == 1)
 			pflags &= ~SD_SERIALIZE;
 	}

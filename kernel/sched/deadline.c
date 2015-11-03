@@ -747,8 +747,6 @@ static void update_curr_dl(struct rq *rq)
 	curr->se.exec_start = rq_clock_task(rq);
 	cpuacct_charge(curr, delta_exec);
 
-	sched_rt_avg_update(rq, delta_exec);
-
 	dl_se->runtime -= dl_se->dl_yielded ? 0 : delta_exec;
 	if (dl_runtime_exceeded(rq, dl_se)) {
 		dl_se->dl_throttled = 1;
@@ -1235,6 +1233,8 @@ static void task_dead_dl(struct task_struct *p)
 	/* XXX we should retain the bw until 0-lag */
 	dl_b->total_bw -= p->dl.dl_bw;
 	raw_spin_unlock_irq(&dl_b->lock);
+
+	clear_average_bw(&p->dl, &rq->dl);
 }
 
 static void set_curr_task_dl(struct rq *rq)
@@ -1507,7 +1507,9 @@ retry:
 	}
 
 	deactivate_task(rq, next_task, 0);
+	clear_average_bw(&next_task->dl, &rq->dl);
 	set_task_cpu(next_task, later_rq->cpu);
+	add_average_bw(&next_task->dl, &later_rq->dl);
 	activate_task(later_rq, next_task, 0);
 
 	resched_curr(later_rq);
@@ -1593,7 +1595,9 @@ static int pull_dl_task(struct rq *this_rq)
 			ret = 1;
 
 			deactivate_task(src_rq, p, 0);
+			clear_average_bw(&p->dl, &src_rq->dl);
 			set_task_cpu(p, this_cpu);
+			add_average_bw(&p->dl, &this_rq->dl);
 			activate_task(this_rq, p, 0);
 			dmin = p->dl.deadline;
 
@@ -1711,6 +1715,8 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 	 */
 	if (!start_dl_timer(p))
 		__dl_clear_params(p);
+
+	clear_average_bw(&p->dl, &rq->dl);
 
 	/*
 	 * Since this might be the only -deadline task on the rq,

@@ -7259,8 +7259,11 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 		if (!nr_running && idle_cpu(i))
 			sgs->idle_cpus++;
 
-		if (cpu_overutilized(i))
+		if (cpu_overutilized(i)) {
 			*overutilized = true;
+			if (!sgs->group_misfit_task && rq->misfit_task)
+				sgs->group_misfit_task = capacity_of(i);
+		}
 	}
 
 	/* Adjust by relative CPU capacity of the group */
@@ -8956,6 +8959,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 
 	if (!rq->rd->overutilized && cpu_overutilized(task_cpu(curr)))
 		rq->rd->overutilized = true;
+
+	rq->misfit_task = !task_fits_max(curr, rq->cpu);
 }
 
 /*

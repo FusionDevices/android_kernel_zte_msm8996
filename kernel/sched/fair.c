@@ -2949,7 +2949,9 @@ static inline void __update_task_entity_utilization(struct sched_entity *se)
 	if (update_freq && (decayed || removed_util))
 		cfs_rq_util_change(cfs_rq);
 
-	trace_sched_load_avg_cpu(cpu_of(rq_of(cfs_rq)), cfs_rq);
+	/* Trace CPU load, unless cfs_rq belongs to a non-root task_group */
+	if (cfs_rq == &rq_of(cfs_rq)->cfs)
+		trace_sched_load_avg_cpu(cpu_of(rq_of(cfs_rq)), cfs_rq);
 
 	return decayed || removed;
 }

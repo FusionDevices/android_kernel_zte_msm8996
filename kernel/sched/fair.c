@@ -2994,6 +2994,7 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 	u64 now = cfs_rq_clock_task(cfs_rq);
 	int cpu = cpu_of(rq_of(cfs_rq));
 	int decayed;
+	void *ptr = NULL;
 
 	/*
 	 * Newly created task or never used group entity should not be removed
@@ -3012,8 +3013,12 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 	if (decayed && (flags & UPDATE_TG))
 		update_tg_load_avg(cfs_rq, 0);
 
-	if (entity_is_task(se))
-		trace_sched_load_avg_task(task_of(se), &se->avg);
+	if (entity_is_task(se)) {
+#ifdef CONFIG_SCHED_WALT
+		ptr = (void *)&(task_of(se)->ravg);
+#endif
+		trace_sched_load_avg_task(task_of(se), &se->avg, ptr);
+	}
 }
 
 /**

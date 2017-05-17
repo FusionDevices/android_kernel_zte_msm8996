@@ -533,6 +533,7 @@ static void  ramoops_of_init(struct platform_device *pdev)
 	pdata->record_size = record;
 	pdata->ftrace_size = ftrace;
 	pdata->dump_oops = (int)oops;
+	pdata->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 }
 #else
 static inline void ramoops_of_init(struct platform_device *pdev)

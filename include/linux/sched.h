@@ -1311,7 +1311,7 @@ struct sched_statistics {
 	/* select_task_rq_fair() */
 	u64			nr_wakeups_cas_attempts;
 	u64			nr_wakeups_cas_count;
->>>>>>> 4c7d575... Experimental!: sched/fair: Add eas (& cas) specific rq, sd and task stats
+
 };
 #endif
 

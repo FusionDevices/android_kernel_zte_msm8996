@@ -2147,8 +2147,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 							   stream->resources, en,
 							   VORTEX_RESOURCE_SRC)) < 0) {
 					memset(stream->resources, 0,
-					       sizeof(unsigned char) *
-					       VORTEX_RESOURCE_LAST);
+					       sizeof(stream->resources));
 					return -EBUSY;
 				}
 				if (stream->type != VORTEX_PCM_A3D) {
@@ -2158,7 +2157,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 								   VORTEX_RESOURCE_MIXIN)) < 0) {
 						memset(stream->resources,
 						       0,
-						       sizeof(unsigned char) * VORTEX_RESOURCE_LAST);
+						       sizeof(stream->resources));
 						return -EBUSY;
 					}
 				}
@@ -2171,8 +2170,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_A3D)) < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				pr_err( "vortex: out of A3D sources. Sorry\n");
 				return -EBUSY;
 			}
@@ -2284,8 +2282,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   VORTEX_RESOURCE_MIXOUT))
 			    < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				return -EBUSY;
 			}
 			if ((src[i] =
@@ -2293,8 +2290,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_SRC)) < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				return -EBUSY;
 			}
 		}

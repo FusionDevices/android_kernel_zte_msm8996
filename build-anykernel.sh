@@ -786,7 +786,8 @@ function tc_changedestro() {
            02 "LinaroTC" off\
            03 "CT-NG" off\
 	   04 "SnapTC" off\
-           05 "GoogleTC" off 2>$_temp
+           05 "GoogleTC" off\
+	   06 "QUVNTNM" off 2>$_temp
     result=`cat $_temp`
 	TC_OLD="$TC_DESTRO"
 	if [ "$result" == 01 ]; then
@@ -808,6 +809,10 @@ function tc_changedestro() {
 	if [ "$result" == 05 ]; then
 		echo "GoogleTC"
 		TC_DESTRO="GoogleTC"
+	fi
+	if [ "$result" == 06 ]; then
+		echo "QUVNTNM"
+		TC_DESTRO="QUVNTNM"
 	fi
 #    dialog --title " Item(s) selected " --msgbox "\nYou choose item: TC: ${TC_DESTRO} $result" 6 44
 	replace_string build-anykernel.cfg "TC_DESTRO=$TC_OLD" "$TC_OLD" "$TC_DESTRO"

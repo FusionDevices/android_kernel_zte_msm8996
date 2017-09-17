@@ -1540,17 +1540,12 @@ static void get_tunables_data(struct acgov_tunables *tunables,
 	}
 
 initialize:
-#ifdef CONFIG_MACH_MSM8996_H1
 	if (cpu < 2)
 		tunables->up_rate_limit_us = UP_RATE_LIMIT_US;
 	else
 		tunables->up_rate_limit_us = UP_RATE_LIMIT_US_BIGC;
 
 	tunables->down_rate_limit_us = DOWN_RATE_LIMIT_US;
-#else
-	tunables->up_rate_limit_us = LATENCY_MULTIPLIER;
-	tunables->down_rate_limit_us = LATENCY_MULTIPLIER;
-#endif
 	lat = policy->cpuinfo.transition_latency / NSEC_PER_USEC;
 	if (lat) {
 		tunables->up_rate_limit_us *= lat;

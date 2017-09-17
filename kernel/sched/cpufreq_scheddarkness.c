@@ -21,9 +21,7 @@
 
 #include "sched.h"
 #include "tune.h"
-#ifdef CONFIG_STATE_NOTIFIER
-#include <linux/state_notifier.h>
-#endif
+#include <linux/display_state.h>
 
 unsigned long boosted_cpu_util(int cpu);
 
@@ -37,9 +35,7 @@ unsigned long boosted_cpu_util(int cpu);
 
 #define FREQ_RESPONSIVENESS			1113600
 #define BOOST_PERC					0
-#ifdef CONFIG_STATE_NOTIFIER
 #define DEFAULT_RATE_LIMIT_SUSP_NS ((s64)(80000 * NSEC_PER_USEC))
-#endif
 
 struct dkgov_tunables {
 	struct gov_attr_set attr_set;
@@ -178,15 +174,15 @@ static bool dkgov_should_update_freq(struct dkgov_policy *sg_policy, u64 time)
 static bool dkgov_up_down_rate_limit(struct dkgov_policy *sg_policy, u64 time,
 				     unsigned int next_freq)
 {
+     /* Create display state boolean */
+	const bool display_on = is_display_on();
 	s64 delta_ns;
 
 	delta_ns = time - sg_policy->last_freq_update_time;
-#ifdef CONFIG_STATE_NOTIFIER
-	if (state_suspended) {
+	if (!display_on) {
 		if (delta_ns < DEFAULT_RATE_LIMIT_SUSP_NS)
 			return true;
 	}
-#endif
 	if (next_freq > sg_policy->next_freq &&
 	    delta_ns < sg_policy->up_rate_delay_ns)
 			return true;

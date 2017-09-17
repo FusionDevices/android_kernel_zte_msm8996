@@ -21,9 +21,7 @@
 
 #include "sched.h"
 #include "tune.h"
-#ifdef CONFIG_STATE_NOTIFIER
-#include <linux/state_notifier.h>
-#endif
+#include <linux/display_state.h>
 
 unsigned long boosted_cpu_util(int cpu);
 
@@ -43,9 +41,7 @@ unsigned long boosted_cpu_util(int cpu);
 #define PUMP_DEC_STEP_AT_MIN_FREQ	1
 #define PUMP_DEC_STEP			1
 #define BOOST_PERC			0
-#ifdef CONFIG_STATE_NOTIFIER
 #define DEFAULT_RATE_LIMIT_SUSP_NS ((s64)(80000 * NSEC_PER_USEC))
-#endif
 
 struct acgov_tunables {
 	struct gov_attr_set attr_set;
@@ -352,10 +348,11 @@ static bool acgov_up_down_rate_limit(struct acgov_policy *sg_policy, u64 time,
 #else
 	int index = cpufreq_frequency_table_get_index(policy, policy->cur);
 #endif
+	/* Create display state boolean */
+	const bool display_on = is_display_on();
 
 	delta_ns = time - sg_policy->last_freq_update_time;
-#ifdef CONFIG_STATE_NOTIFIER
-	if (state_suspended) {
+	if (!display_on) {
 		if (delta_ns < DEFAULT_RATE_LIMIT_SUSP_NS)
 			return true;
 	} else if (index >= 0
@@ -368,7 +365,6 @@ static bool acgov_up_down_rate_limit(struct acgov_policy *sg_policy, u64 time,
 			tunables->down_target_frequency_delay[index] * NSEC_PER_USEC;
 		spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
 	}
-#endif
 	if (next_freq > sg_policy->next_freq &&
 	    delta_ns < (sg_policy->up_rate_delay_ns + up_target_frequency_delay_ns))
 			return true;

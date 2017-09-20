@@ -7530,10 +7530,9 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
 		 * the tasks on the system).
 		 */
 		if (prefer_sibling && sds->local &&
-		    group_has_capacity(env, &sds->local_stat) &&
-		    (sgs->sum_nr_running > 1)) {
-			sgs->group_no_capacity = 1;
-			sgs->group_type = group_overloaded;
+		    sds->local_stat.group_has_free_capacity) {
+			sgs->group_capacity_factor = min(sgs->group_capacity_factor, 1U);
+			sgs->group_type = group_classify(sg, sgs);
 		}
 
 		/*

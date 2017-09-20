@@ -356,19 +356,21 @@ struct cfs_rq {
 
 #ifdef CONFIG_SMP
 	/*
-	 * CFS load tracking
+	 * CFS Load tracking
+	 * Under CFS, load is tracked on a per-entity basis and aggregated up.
+	 * This allows for the description of both thread and group usage (in
+	 * the FAIR_GROUP_SCHED case).
+	 * runnable_load_avg is the sum of the load_avg_contrib of the
+	 * sched_entities on the rq.
+	 * blocked_load_avg is similar to runnable_load_avg except that its
+	 * the blocked sched_entities on the rq.
+	 * utilization_load_avg is the sum of the average running time of the
+	 * sched_entities on the rq.
 	 */
-	struct sched_avg avg;
-	u64 runnable_load_sum;
-	unsigned long runnable_load_avg;
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	unsigned long tg_load_avg_contrib;
-	unsigned long propagate_avg;
-#endif
-	atomic_long_t removed_load_avg, removed_util_avg;
-#ifndef CONFIG_64BIT
-	u64 load_last_update_time_copy;
-#endif
+	unsigned long runnable_load_avg, blocked_load_avg, utilization_load_avg;
+	atomic64_t decay_counter;
+	u64 last_decay;
+	atomic_long_t removed_load;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*

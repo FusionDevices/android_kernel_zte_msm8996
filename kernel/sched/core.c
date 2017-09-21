@@ -6572,11 +6572,9 @@ static int sched_domains_curr_level;
 /*
  * SD_flags allowed in topology descriptions.
  *
- * SD_SHARE_CPUCAPACITY      - describes SMT topologies
- * SD_SHARE_PKG_RESOURCES - describes shared caches
- * SD_NUMA                - describes NUMA topologies
- * SD_SHARE_POWERDOMAIN   - describes shared power domain
- * SD_SHARE_CAP_STATES    - describes shared capacity states
+ * These flags are purely descriptive of the topology and do not prescribe
+ * behaviour. Behaviour is artificial and mapped in the below sd_init()
+ * function:
  *
  *   SD_SHARE_CPUCAPACITY   - describes SMT topologies
  *   SD_SHARE_PKG_RESOURCES - describes shared caches
@@ -6595,6 +6593,7 @@ static int sched_domains_curr_level;
 	 SD_SHARE_PKG_RESOURCES |	\
 	 SD_NUMA |			\
 	 SD_ASYM_PACKING |		\
+	 SD_ASYM_CPUCAPACITY |		\
 	 SD_SHARE_POWERDOMAIN |		\
 	 SD_SHARE_CAP_STATES)
 

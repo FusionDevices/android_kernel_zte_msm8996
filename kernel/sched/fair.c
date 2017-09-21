@@ -4172,27 +4172,7 @@ static inline void hrtick_update(struct rq *rq)
 }
 #endif
 
-#ifdef CONFIG_SMP
 static bool cpu_overutilized(int cpu);
-unsigned long boosted_cpu_util(int cpu);
-#else
-#define boosted_cpu_util(cpu) cpu_util(cpu)
-#endif
-
-#ifdef CONFIG_CPU_FREQ_GOV_SCHED
-static void update_capacity_of(int cpu)
-{
-	unsigned long req_cap;
-
-	if (!sched_freq())
-		return;
-
-	/* Convert scale-invariant capacity to cpu. */
-	req_cap = boosted_cpu_util(cpu);
-	req_cap = req_cap * SCHED_CAPACITY_SCALE / capacity_orig_of(cpu);
-	set_cfs_cpu_capacity(cpu, true, req_cap);
-}
-#endif
 
 /*
  * The enqueue_task method is called before nr_running is
@@ -4204,10 +4184,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
-#ifdef CONFIG_SMP
-	int task_new = flags & ENQUEUE_WAKEUP_NEW;
-	int task_wakeup = flags & ENQUEUE_WAKEUP;
-#endif
+	int task_new = !(flags & ENQUEUE_WAKEUP);
 
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
@@ -4247,15 +4224,12 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		update_cfs_shares(se);
 	}
 
-	if (!se)
+	if (!se) {
 		add_nr_running(rq, 1);
+		if (!task_new && !rq->rd->overutilized &&
+		    cpu_overutilized(rq->cpu))
+			rq->rd->overutilized = true;
 	}
-
-	/* Update SchedTune accouting */
-	schedtune_enqueue_task(p, cpu_of(rq));
-
-#endif /* CONFIG_SMP */
-
 	hrtick_update(rq);
 }
 
@@ -7190,11 +7164,8 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 		if (!nr_running && idle_cpu(i))
 			sgs->idle_cpus++;
 
-		if (cpu_overutilized(i)) {
+		if (cpu_overutilized(i))
 			*overutilized = true;
-			if (!sgs->group_misfit_task && rq->misfit_task)
-				sgs->group_misfit_task = capacity_of(i);
-		}
 	}
 
 	/* Adjust by relative CPU capacity of the group */
@@ -7403,17 +7374,12 @@ next_group:
 			env->dst_rq->rd->overload = overload;
 
 		/* Update over-utilization (tipping point, U >= 0) indicator */
-		if (env->dst_rq->rd->overutilized != overutilized) {
+		if (env->dst_rq->rd->overutilized != overutilized)
 			env->dst_rq->rd->overutilized = overutilized;
-			trace_sched_overutilized(overutilized);
-		}
 	} else {
-		if (!env->dst_rq->rd->overutilized && overutilized) {
+		if (!env->dst_rq->rd->overutilized && overutilized)
 			env->dst_rq->rd->overutilized = true;
-			trace_sched_overutilized(true);
-		}
 	}
-
 }
 
 /**
@@ -8892,15 +8858,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 	if (numabalancing_enabled)
 		task_tick_numa(rq, curr);
 
-#ifdef CONFIG_SMP
-	if (!rq->rd->overutilized && cpu_overutilized(task_cpu(curr))) {
+	if (!rq->rd->overutilized && cpu_overutilized(task_cpu(curr)))
 		rq->rd->overutilized = true;
-		trace_sched_overutilized(true);
-	}
-
-	rq->misfit_task = !task_fits_max(curr, rq->cpu);
-#endif
-
 }
 
 /*

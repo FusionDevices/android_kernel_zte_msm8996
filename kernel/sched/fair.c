@@ -744,6 +744,13 @@ void init_entity_runnable_average(struct sched_entity *se)
 	 * will definitely be update (after enqueue).
 	 */
 	sa->period_contrib = 1023;
+	/*
+	 * Tasks are intialized with full load to be seen as heavy tasks until
+	 * they get a chance to stabilize to their real load level.
+	 * Group entities are intialized with zero load to reflect the fact that
+	 * nothing has been attached to the task group yet.
+	 */
+	if (entity_is_task(se))
 	sa->load_avg = scale_load_down(se->load.weight);
 	sa->load_sum = sa->load_avg * LOAD_AVG_MAX;
 	/*
@@ -2312,17 +2319,7 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 
 	/* Ensure tg_weight >= load */
 	tg_weight -= cfs_rq->tg_load_avg_contrib;
-	tg_weight += cfs_rq->load.weight;
-
-	return tg_weight;
-}
-
-static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
-{
-	long tg_weight, load, shares;
-
-	tg_weight = calc_tg_weight(tg, cfs_rq);
-	load = cfs_rq->load.weight;
+	tg_weight += load;
 
 	shares = (tg->shares * load);
 	if (tg_weight)
@@ -2998,10 +2995,11 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 	 * Newly created task or never used group entity should not be removed
 	 * from its (source) cfs_rq
 	 */
-	if (se->avg.last_update_time && !(flags & SKIP_AGE_LOAD))
+	if (se->avg.last_update_time && !(flags & SKIP_AGE_LOAD)) {
 		__update_load_avg(now, cpu, &se->avg,
 			  se->on_rq * scale_load_down(se->load.weight),
 			  cfs_rq->curr == se, NULL);
+	}
 
 	decayed = update_cfs_rq_load_avg(now, cfs_rq, true);
 
@@ -3313,6 +3311,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 */
 	update_curr(cfs_rq);
 	update_load_avg(se, UPDATE_TG);
+	update_cfs_shares(se);
 	enqueue_entity_load_avg(cfs_rq, se);
 	account_entity_enqueue(cfs_rq, se);
 
@@ -3595,7 +3594,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * Ensure that runnable average is periodically updated.
 	 */
 	update_load_avg(curr, UPDATE_TG);
-	update_cfs_shares(cfs_rq);
+	update_cfs_shares(curr);
 
 #ifdef CONFIG_SCHED_HRTICK
 	/*
@@ -4520,7 +4519,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			break;
 
 		update_load_avg(se, UPDATE_TG);
-		update_cfs_shares(cfs_rq);
+		update_cfs_shares(se);
 	}
 
 	if (!se)
@@ -4627,7 +4626,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			break;
 
 		update_load_avg(se, UPDATE_TG);
-		update_cfs_shares(cfs_rq);
+		update_cfs_shares(se);
 	}
 
 	if (!se)

@@ -5318,7 +5318,8 @@ static int wake_wide(struct task_struct *p)
 	return 1;
 }
 
-static inline bool cpu_in_sg(struct sched_group *sg, int cpu)
+static int wake_affine(struct sched_domain *sd, struct task_struct *p,
+		       int prev_cpu, int sync)
 {
 	return cpu != -1 && cpumask_test_cpu(cpu, sched_group_cpus(sg));
 }
@@ -5900,7 +5901,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 {
 	struct sched_domain *sd;
 	struct sched_group *sg;
-	int i = task_cpu(p);
 	int best_idle = -1;
 	int best_idle_cstate = -1;
 	int best_idle_capacity = INT_MAX;
@@ -5912,8 +5912,8 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 		/*
 		 * If the prevous cpu is cache affine and idle, don't be stupid.
 		 */
-		if (i != target && cpus_share_cache(i, target) && idle_cpu(i))
-			return i;
+		if (prev != target && cpus_share_cache(prev, target) && idle_cpu(prev))
+			return prev;
 	}
 
 	/*
@@ -6241,7 +6241,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 
 	if (affine_sd) {
 		sd = NULL; /* Prefer wake_affine over balance flags */
-		if (cpu != prev_cpu && wake_affine(affine_sd, p, sync))
+		if (cpu != prev_cpu && wake_affine(affine_sd, p, prev_cpu, sync))
 			new_cpu = cpu;
 	}
 
@@ -6249,7 +6249,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 		if (energy_aware() && !cpu_rq(cpu)->rd->overutilized)
 			new_cpu = energy_aware_wake_cpu(p, prev_cpu, sync);
 		else if (sd_flag & SD_BALANCE_WAKE) /* XXX always ? */
-			new_cpu = select_idle_sibling(p, new_cpu);
+			new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
 
 	} else while (sd) {
 		struct sched_group *group;

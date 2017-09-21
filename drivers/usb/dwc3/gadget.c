@@ -933,6 +933,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	struct dwc3_trb		*trb;
 	bool			zlp_appended = false;
 	unsigned		rlen;
+	int			isoc_maxp, max_payload, mult;
 
 	dev_vdbg(dwc->dev, "%s: req %p dma %08llx length %d%s%s\n",
 			dep->name, req, (unsigned long long) dma,
@@ -966,6 +967,11 @@ update_trb:
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
+		isoc_maxp = usb_endpoint_maxp(dep->endpoint.desc);
+		max_payload = isoc_maxp & 0x7FF;
+		mult = (req->request.length/max_payload) & 0x3;
+		trb->size |= DWC3_TRB_SIZE_PCM1(
+			(req->request.length%max_payload) ? mult : mult-1);
 		if (!node)
 			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
 		else

@@ -736,12 +736,18 @@ void init_entity_runnable_average(struct sched_entity *se)
 {
 	struct sched_avg *sa = &se->avg;
 
-	p->se.avg.decay_count = 0;
-	slice = sched_slice(task_cfs_rq(p), &p->se) >> 10;
-	p->se.avg.runnable_avg_sum = p->se.avg.running_avg_sum = slice;
-	p->se.avg.avg_period = slice;
-	__update_task_entity_contrib(&p->se);
-	__update_task_entity_utilization(&p->se);
+	sa->last_update_time = 0;
+	/*
+	 * sched_avg's period_contrib should be strictly less then 1024, so
+	 * we give it 1023 to make sure it is almost a period (1024us), and
+	 * will definitely be update (after enqueue).
+	 */
+	sa->period_contrib = 1023;
+	sa->load_avg = scale_load_down(se->load.weight);
+	sa->load_sum = sa->load_avg * LOAD_AVG_MAX;
+	sa->util_avg = scale_load_down(SCHED_LOAD_SCALE);
+	sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
+	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
@@ -2450,6 +2456,10 @@ static u32 __compute_runnable_contrib(u64 n)
 	return contrib + runnable_avg_yN_sum[n];
 }
 
+#if (SCHED_LOAD_SHIFT - SCHED_LOAD_RESOLUTION) != 10 || SCHED_CAPACITY_SHIFT != 10
+#error "load tracking assumes 2^10 as unit"
+#endif
+
 #define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
 /*
@@ -2533,7 +2543,7 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 			}
 		}
 		if (running)
-			sa->util_sum += cap_scale(scaled_delta_w, scale_cpu);
+			sa->util_sum += scaled_delta_w * scale_cpu;
 
 		delta -= delta_w;
 
@@ -2557,7 +2567,7 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 				cfs_rq->runnable_load_sum += weight * contrib;
 		}
 		if (running)
-			sa->util_sum += cap_scale(contrib, scale_cpu);
+			sa->util_sum += contrib * scale_cpu;
 	}
 
 	/* Remainder of delta accrued against u_0` */
@@ -2568,16 +2578,19 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 			cfs_rq->runnable_load_sum += weight * scaled_delta;
 	}
 	if (running)
-		sa->util_sum += cap_scale(scaled_delta, scale_cpu);
+		sa->util_sum += scaled_delta * scale_cpu;
 
 	return decayed;
 }
 
-/* Synchronize an entity's decay with its parenting cfs_rq.*/
-static inline u64 __synchronize_entity_decay(struct sched_entity *se)
-{
-	struct cfs_rq *cfs_rq = cfs_rq_of(se);
-	u64 last_update_time;
+	if (decayed) {
+		sa->load_avg = div_u64(sa->load_sum, LOAD_AVG_MAX);
+		if (cfs_rq) {
+			cfs_rq->runnable_load_avg =
+				div_u64(cfs_rq->runnable_load_sum, LOAD_AVG_MAX);
+		}
+		sa->util_avg = sa->util_sum / LOAD_AVG_MAX;
+	}
 
 	decays -= se->avg.decay_count;
 	se->avg.decay_count = 0;
@@ -2690,8 +2703,11 @@ static long __update_entity_load_avg_contrib(struct sched_entity *se)
 		__update_group_entity_contrib(se);
 	}
 
-	return se->avg.load_avg_contrib - old_contrib;
-}
+	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
+		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
+		sa->util_avg = max_t(long, sa->util_avg - r, 0);
+		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
+	}
 
 
 static inline void __update_task_entity_utilization(struct sched_entity *se)

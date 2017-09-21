@@ -5975,36 +5975,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 					if (i == target || !idle_cpu(i))
 						goto next;
 				}
-			}
-
-					if (new_usage > capacity_orig || !idle_cpu(i))
-						goto next;
-
-					if (i == target && new_usage <= capacity_curr_of(target)) {
-						schedstat_inc(p, se.statistics.nr_wakeups_sis_suff_cap);
-						schedstat_inc(this_rq(), eas_stats.sis_suff_cap);
-						schedstat_inc(sd, eas_stats.sis_suff_cap);
-						return target;
-					}
-
-					if (idle_idx < best_idle_cstate &&
-					    capacity_orig <= best_idle_capacity) {
-						best_idle_cpu = i;
-						best_idle_cstate = idle_idx;
-						best_idle_capacity = capacity_orig;
-					}
-				}
-			} else {
-				for_each_cpu(i, sched_group_cpus(sg)) {
-					if (i == target || !idle_cpu(i))
-						goto next;
-				}
 
 				target = cpumask_first_and(sched_group_cpus(sg),
 					tsk_cpus_allowed(p));
-				schedstat_inc(p, se.statistics.nr_wakeups_sis_idle_cpu);
-				schedstat_inc(this_rq(), eas_stats.sis_idle_cpu);
-				schedstat_inc(sd, eas_stats.sis_idle_cpu);
 				goto done;
 			}
 next:

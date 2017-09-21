@@ -9409,9 +9409,10 @@ static void detach_task_cfs_rq(struct task_struct *p)
 	detach_entity_load_avg(cfs_rq, se);
 }
 
-static void switched_to_fair(struct rq *rq, struct task_struct *p)
+static void attach_task_cfs_rq(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
@@ -9422,45 +9423,32 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
 #endif
 
 	/* Synchronize task with its cfs_rq */
-	attach_entity_load_avg(cfs_rq_of(&p->se), &p->se);
-
-	if (!task_on_rq_queued(p)) {
-
-		/*
-		 * Ensure the task has a non-normalized vruntime when it is switched
-		 * back to the fair class with !queued, so that enqueue_entity() at
-		 * wake-up time will do the right thing.
-		 *
-		 * If it's queued, then the enqueue_entity(.flags=0) makes the task
-		 * has non-normalized vruntime, if it's !queued, then it still has
-		 * normalized vruntime.
-		 */
-		if (p->state != TASK_RUNNING)
-			se->vruntime += cfs_rq_of(se)->min_vruntime;
-		return;
-	}
-
-	/* Synchronize entity with its cfs_rq */
-	update_load_avg(se, sched_feat(ATTACH_AGE_LOAD) ? 0 : SKIP_AGE_LOAD);
 	attach_entity_load_avg(cfs_rq, se);
-	update_tg_load_avg(cfs_rq, false);
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-       /*
-        * Propagate the attach across the tg tree to make it visible to the
-        * root
-        */
-       se = se->parent;
-       for_each_sched_entity(se) {
-               cfs_rq = cfs_rq_of(se);
+	if (!vruntime_normalized(p))
+		se->vruntime += cfs_rq->min_vruntime;
+}
 
-               if (cfs_rq_throttled(cfs_rq))
-                       break;
+static void switched_from_fair(struct rq *rq, struct task_struct *p)
+{
+	detach_task_cfs_rq(p);
+}
 
-               update_load_avg(se, UPDATE_TG);
-       }
-#endif
+static void switched_to_fair(struct rq *rq, struct task_struct *p)
+{
+	attach_task_cfs_rq(p);
 
+	if (task_on_rq_queued(p)) {
+		/*
+		 * We were most likely switched from sched_rt, so
+		 * kick off the schedule if running, otherwise just see
+		 * if we can still preempt the current task.
+		 */
+		if (rq->curr == p)
+			resched_curr(rq);
+		else
+			check_preempt_curr(rq, p, 0);
+	}
 }
 
 static void attach_task_cfs_rq(struct task_struct *p)
@@ -9540,14 +9528,7 @@ static void task_move_group_fair(struct task_struct *p)
 	/* Tell se's cfs_rq has been changed -- migrated */
 	p->se.avg.last_update_time = 0;
 #endif
-
-	se->depth = se->parent ? se->parent->depth + 1 : 0;
-	cfs_rq = cfs_rq_of(se);
-	if (!queued)
-		se->vruntime += cfs_rq->min_vruntime;
-
-	/* Virtually synchronize task with its new cfs_rq */
-	attach_entity_load_avg(cfs_rq, se);
+	attach_task_cfs_rq(p);
 }
 
 void free_fair_sched_group(struct task_group *tg)

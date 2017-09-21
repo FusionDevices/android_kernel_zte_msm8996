@@ -417,9 +417,10 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
                    -Wno-bool-compare -Wno-memset-transposed-args \
                    -Wno-maybe-uninitialized \
                    -Wno-array-bounds -Wno-memset-transposed-args \
-                   -mcpu=cortex-a57.cortex-a53 -mtune=cortex-a57.cortex-a53 \
+		   -Wno-format-truncation -Wno-bool-operation -Wno-stringop-overflow -Wno-stringop-overflow \
+		   -ffast-math -Wno-multistatement-macros -Wno-duplicate-decl-specifier \
+		   -mcpu=cortex-a57.cortex-a53+crc+crypto -mtune=cortex-a57.cortex-a53 \
                    -march=armv8-a+crc \
-           	   -mcpu=cortex-a57 -mtune=cortex-a57 \
                    -fmodulo-sched -fmodulo-sched-allow-regmoves \
                    -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
  		   -fno-aggressive-loop-optimizations \

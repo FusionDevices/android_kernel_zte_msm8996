@@ -2704,13 +2704,14 @@ static inline void __update_task_entity_contrib(struct sched_entity *se)
 /* Compute the current contribution to load_avg by se, return any delta */
 static long __update_entity_load_avg_contrib(struct sched_entity *se)
 {
-	long old_contrib = se->avg.load_avg_contrib;
+	struct sched_avg *sa = &cfs_rq->avg;
+	int decayed, removed = 0;
 
-	if (entity_is_task(se)) {
-		__update_task_entity_contrib(se);
-	} else {
-		__update_tg_runnable_avg(&se->avg, group_cfs_rq(se));
-		__update_group_entity_contrib(se);
+	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
+		long r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
+		sa->load_avg = max_t(long, sa->load_avg - r, 0);
+		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
+		removed = 1;
 	}
 
 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
@@ -2724,10 +2725,7 @@ static inline void __update_task_entity_utilization(struct sched_entity *se)
 {
 	u32 contrib;
 
-	/* avoid overflowing a 32-bit type w/ SCHED_LOAD_SCALE */
-	contrib = se->avg.running_avg_sum * scale_load_down(SCHED_LOAD_SCALE);
-	contrib /= (se->avg.avg_period + 1);
-	se->avg.utilization_avg_contrib = scale_load(contrib);
+	return decayed || removed;
 }
 
 static long __update_entity_utilization_avg_contrib(struct sched_entity *se)

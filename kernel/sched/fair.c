@@ -2770,9 +2770,12 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 	else
 		now = cfs_rq_clock_task(group_cfs_rq(se));
 
-	if (!__update_entity_runnable_avg(now, &se->avg, se->on_rq,
-					cfs_rq->curr == se))
-		return;
+	if (update_cfs_rq_load_avg(now, cfs_rq) && update_tg)
+		update_tg_load_avg(cfs_rq, 0);
+
+	if (entity_is_task(se))
+		trace_sched_load_avg_task(task_of(se), &se->avg);
+}
 
 	contrib_delta = __update_entity_load_avg_contrib(se);
 	utilization_delta = __update_entity_utilization_avg_contrib(se);

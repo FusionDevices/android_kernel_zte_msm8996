@@ -5660,31 +5660,32 @@ done:
 }
 
 /*
- * cpu_util_wake: Compute cpu utilization with any contributions from
- * the waking task p removed.
+ * cpu_util returns the amount of capacity of a CPU that is used by CFS
+ * tasks. The unit of the return value must be the one of capacity so we can
+ * compare the utilization with the capacity of the CPU that is available for
+ * CFS task (ie cpu_capacity).
+ * cfs.avg.util_avg is the sum of running time of runnable tasks on a
+ * CPU. It represents the amount of utilization of a CPU in the range
+ * [0..SCHED_LOAD_SCALE]. The utilization of a CPU can't be higher than the
+ * full capacity of the CPU because it's about the running time on this CPU.
+ * Nevertheless, cfs.avg.util_avg can be higher than SCHED_LOAD_SCALE
+ * because of unfortunate rounding in util_avg or just
+ * after migrating tasks until the average stabilizes with the new running
+ * time. So we need to check that the utilization stays into the range
+ * [0..cpu_capacity_orig] and cap if necessary.
+ * Without capping the utilization, a group could be seen as overloaded (CPU0
+ * utilization at 121% + CPU1 utilization at 80%) whereas CPU1 has 20% of
+ * available capacity.
  */
-static int cpu_util_wake(int cpu, struct task_struct *p)
+static int cpu_util(int cpu)
 {
-	unsigned long util, capacity;
+	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
+	unsigned long capacity = capacity_orig_of(cpu);
 
-#ifdef CONFIG_SCHED_WALT
-	/*
-	 * WALT does not decay idle tasks in the same manner
-	 * as PELT, so it makes little sense to subtract task
-	 * utilization from cpu utilization. Instead just use
-	 * cpu_util for this case.
-	 */
-	if (!walt_disabled && sysctl_sched_use_walt_cpu_util)
-		return cpu_util(cpu);
-#endif
-	/* Task has no contribution or is new */
-	if (cpu != task_cpu(p) || !p->se.avg.last_update_time)
-		return cpu_util(cpu);
+	if (util >= SCHED_LOAD_SCALE)
+		return capacity;
 
-	capacity = capacity_orig_of(cpu);
-	util = max_t(long, cpu_util(cpu) - task_util(p), 0);
-
-	return (util >= capacity) ? capacity : util;
+	return (util * capacity) >> SCHED_LOAD_SHIFT;
 }
 
 static int start_cpu(bool boosted)

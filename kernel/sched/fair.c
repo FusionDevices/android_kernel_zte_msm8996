@@ -9377,7 +9377,7 @@ static void detach_task_cfs_rq(struct task_struct *p)
 
 static void attach_entity_cfs_rq(struct sched_entity *se)
 {
-	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+	struct sched_entity *se = &p->se;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
@@ -9386,6 +9386,22 @@ static void attach_entity_cfs_rq(struct sched_entity *se)
 	 */
 	se->depth = se->parent ? se->parent->depth + 1 : 0;
 #endif
+
+	if (!task_on_rq_queued(p)) {
+
+		/*
+		 * Ensure the task has a non-normalized vruntime when it is switched
+		 * back to the fair class with !queued, so that enqueue_entity() at
+		 * wake-up time will do the right thing.
+		 *
+		 * If it's queued, then the enqueue_entity(.flags=0) makes the task
+		 * has non-normalized vruntime, if it's !queued, then it still has
+		 * normalized vruntime.
+		 */
+		if (p->state != TASK_RUNNING)
+			se->vruntime += cfs_rq_of(se)->min_vruntime;
+		return;
+	}
 
 	/* Synchronize entity with its cfs_rq */
 	update_load_avg(se, sched_feat(ATTACH_AGE_LOAD) ? 0 : SKIP_AGE_LOAD);

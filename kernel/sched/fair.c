@@ -716,8 +716,13 @@ static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu);
 static unsigned long task_h_load(struct task_struct *p);
 
-static inline void __update_task_entity_contrib(struct sched_entity *se);
-static inline void __update_task_entity_utilization(struct sched_entity *se);
+/*
+ * We choose a half-life close to 1 scheduling period.
+ * Note: The tables below are dependent on this value.
+ */
+#define LOAD_AVG_PERIOD 16
+#define LOAD_AVG_MAX 24117 /* maximum possible load avg */
+#define LOAD_AVG_MAX_N 172 /* number of full periods to produce LOAD_AVG_MAX */
 
 /* Give new sched_entity start runnable values to heavy its load in infant time */
 void init_entity_runnable_average(struct sched_entity *se)

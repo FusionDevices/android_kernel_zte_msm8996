@@ -2308,7 +2308,17 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 
 	/* Ensure tg_weight >= load */
 	tg_weight -= cfs_rq->tg_load_avg_contrib;
-	tg_weight += load;
+	tg_weight += cfs_rq->load.weight;
+
+	return tg_weight;
+}
+
+static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
+{
+	long tg_weight, load, shares;
+
+	tg_weight = calc_tg_weight(tg, cfs_rq);
+	load = cfs_rq->load.weight;
 
 	shares = (tg->shares * load);
 	if (tg_weight)

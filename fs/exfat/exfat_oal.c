@@ -1,4 +1,3 @@
-/* Some of the source code in this file came from "linux/fs/fat/misc.c".  */
 /*
  *  linux/fs/fat/misc.c
  *
@@ -25,11 +24,11 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include "exfat_global.h"
-
 #include <linux/semaphore.h>
 #include <linux/time.h>
 
+#include "exfat_config.h"
+#include "exfat_global.h"
 #include "exfat_api.h"
 #include "exfat_oal.h"
 

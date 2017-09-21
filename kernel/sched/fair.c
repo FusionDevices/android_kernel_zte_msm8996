@@ -2487,9 +2487,11 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 							int runnable,
 							int running)
 {
-	u64 delta, periods;
-	u32 runnable_contrib;
-	int delta_w, decayed = 0;
+	u64 delta, scaled_delta, periods;
+	u32 contrib;
+	int delta_w, scaled_delta_w, decayed = 0;
+	unsigned long scale_freq = arch_scale_freq_capacity(NULL, cpu);
+	unsigned long scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
 
 	delta = now - sa->last_runnable_update;
 	/*
@@ -2525,8 +2527,7 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 		if (runnable)
 			sa->runnable_avg_sum += delta_w;
 		if (running)
-			sa->running_avg_sum += delta_w;
-		sa->avg_period += delta_w;
+			sa->util_sum += scale(scaled_delta_w, scale_cpu);
 
 		delta -= delta_w;
 
@@ -2546,16 +2547,14 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 		if (runnable)
 			sa->runnable_avg_sum += runnable_contrib;
 		if (running)
-			sa->running_avg_sum += runnable_contrib;
-		sa->avg_period += runnable_contrib;
+			sa->util_sum += scale(contrib, scale_cpu);
 	}
 
 	/* Remainder of delta accrued against u_0` */
 	if (runnable)
 		sa->runnable_avg_sum += delta;
 	if (running)
-		sa->running_avg_sum += delta;
-	sa->avg_period += delta;
+		sa->util_sum += scale(scaled_delta, scale_cpu);
 
 	return decayed;
 }

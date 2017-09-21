@@ -1731,9 +1731,9 @@ static void cancel_dl_timer(struct rq *rq, struct task_struct *p)
 
 static void switched_from_dl(struct rq *rq, struct task_struct *p)
 {
+	/* XXX we should retain the bw until 0-lag */
 	cancel_dl_timer(rq, p);
-
-	clear_average_bw(&p->dl, &rq->dl);
+	__dl_clear_params(p);
 
 	/*
 	 * Since this might be the only -deadline task on the rq,

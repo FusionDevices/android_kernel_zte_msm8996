@@ -7378,7 +7378,7 @@ next_group:
 
 	env->src_grp_nr_running = sds->busiest_stat.sum_nr_running;
 
-	if (!lb_sd_parent(env->sd)) {
+	if (!env->sd->parent) {
 		/* update overload indicator if we are at root domain */
 		if (env->dst_rq->rd->overload != overload)
 			env->dst_rq->rd->overload = overload;
@@ -8063,7 +8063,8 @@ more_balance:
 		 * excessive cache_hot migrations and active balances.
 		 */
 		if (idle != CPU_NEWLY_IDLE)
-			sd->nr_balance_failed++;
+			if (env.src_grp_nr_running > 1)
+				sd->nr_balance_failed++;
 
 		if (need_active_balance(&env)) {
 			raw_spin_lock_irqsave(&busiest->lock, flags);

@@ -34,10 +34,8 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/pstore_ram.h>
-#ifdef CONFIG_ZTE_RAM_CONSOLE
 #include <linux/of.h>
-#include <linux/of_address.h>
-#endif
+
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
 
@@ -483,8 +481,6 @@ static void  ramoops_of_init(struct platform_device *pdev)
 	const struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata;
 	struct device_node *np = pdev->dev.of_node;
-	u32 start = 0, size = 0, console = 0, pmsg = 0;
-	u32 record = 0, oops = 0, ftrace = 0;
 	int ret;
 
 	pdata = dev_get_drvdata(dev);
@@ -507,35 +503,9 @@ static void  ramoops_of_init(struct platform_device *pdev)
 	if (ret)
 		return;
 
-	ret = of_property_read_u32(np, "android,ramoops-pmsg-size",
-				&pmsg);
-	if (ret)
-		pr_info("pmsg buffer not configured");
-
-	ret = of_property_read_u32(np, "android,ramoops-record-size",
-				&record);
-	if (ret)
-		pr_info("record buffer not configured");
-
-	ret = of_property_read_u32(np, "android,ramoops-dump-oops",
-				&oops);
-	if (ret)
-		pr_info("oops not configured");
-
-	ret = of_property_read_u32(np, "android,ramoops-ftrace-size",
-				&ftrace);
-	if (ret)
-		pr_info("ftrace not configured");
-
-
 	pdata->mem_address = start;
 	pdata->mem_size = size;
 	pdata->console_size = console;
-	pdata->pmsg_size = pmsg;
-	pdata->record_size = record;
-	pdata->ftrace_size = ftrace;
-	pdata->dump_oops = (int)oops;
-	pdata->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 }
 #else
 static inline void ramoops_of_init(struct platform_device *pdev)
@@ -553,16 +523,15 @@ static int ramoops_probe(struct platform_device *pdev)
 	phys_addr_t paddr;
 	int err = -EINVAL;
 
-#ifdef CONFIG_ZTE_RAM_CONSOLE
-	zte_get_ramoops_paraments(pdev);
-#endif
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		pr_err("could not allocate ramoops_platform_data\n");
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(dev, pdata);
+	err = dev_set_drvdata(dev, pdata);
+	if (err)
+		goto fail_out;
 
 	if (pdev->dev.of_node)
 		ramoops_of_init(pdev);

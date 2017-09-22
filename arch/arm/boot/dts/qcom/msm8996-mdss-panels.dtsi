@@ -171,6 +171,10 @@
 			22 2c 05 08 04 03 04 a0];
 	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "te_signal_check";
+		qcom,mdss-dsi-hbm-on-command = [
+			15 01 00 00 00 00 02 53 e0];
+		qcom,mdss-dsi-hbm-off-command = [
+			15 01 00 00 00 00 02 53 20];
 };
 
 &dsi_dual_jdi_video {

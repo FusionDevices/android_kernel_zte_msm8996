@@ -361,10 +361,8 @@ void rcu_read_unlock_special(struct task_struct *t)
 
 #ifdef CONFIG_RCU_BOOST
 		/* Unboost if we were boosted. */
-		if (drop_boost_mutex) {
+		if (drop_boost_mutex)
 			rt_mutex_unlock(&rnp->boost_mtx);
-			complete(&rnp->boost_completion);
-		}
 #endif /* #ifdef CONFIG_RCU_BOOST */
 
 		/*

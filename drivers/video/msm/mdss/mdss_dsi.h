@@ -404,6 +404,7 @@ struct mdss_dsi_ctrl_pdata {
 	int (*check_read_status) (struct mdss_dsi_ctrl_pdata *pdata);
 	int (*cmdlist_commit)(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
 	void (*switch_mode) (struct mdss_panel_data *pdata, int mode);
+	int (*set_hbm)(struct mdss_dsi_ctrl_pdata *ctrl, int state);
 	struct mdss_panel_data panel_data;
 	unsigned char *ctrl_base;
 	struct dss_io_data ctrl_io;
@@ -559,6 +560,25 @@ struct mdss_dsi_ctrl_pdata {
 	bool update_phy_timing; /* flag to recalculate PHY timings */
 
 	bool phy_power_off;
+
+	/*HTC: ADD*/
+	struct dsi_panel_cmds cabc_off_cmds;
+	struct dsi_panel_cmds cabc_ui_cmds;
+	struct dsi_panel_cmds cabc_video_cmds;
+	struct dsi_panel_cmds color_temp_cmds[COLOR_TEMP_MODE];
+	u8 color_temp_cnt;
+	struct dsi_panel_cmds color_default_cmds;
+	struct dsi_panel_cmds color_srgb_cmds;
+	u8 vddio_switch;
+	struct regulator *vddio_reg;
+	struct dsi_panel_cmds burst_on_cmds;
+	struct dsi_panel_cmds burst_off_cmds;
+
+	int burst_on_level;
+	int burst_off_level;
+
+	struct dsi_panel_cmds hbm_on_cmds;
+	struct dsi_panel_cmds hbm_off_cmds;
 };
 
 struct dsi_status_data {

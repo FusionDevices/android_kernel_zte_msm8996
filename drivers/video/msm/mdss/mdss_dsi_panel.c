@@ -608,8 +608,52 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
-static char power_on_flag=0;
-/*samsung 5.5inch 2k panel ic defect,have to send 2 times for BL changing*/
+
+static int mdss_dsi_panel_hbm_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
+			struct dsi_panel_cmds *pcmds)
+{
+	struct dcs_cmd_req cmdreq;
+	struct mdss_panel_info *pinfo;
+
+	pinfo = &(ctrl->panel_data.panel_info);
+	if (pinfo->dcs_cmd_by_left) {
+		if (ctrl->ndx != DSI_CTRL_LEFT)
+			return -EINVAL;
+	}
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = pcmds->cmds;
+	cmdreq.cmds_cnt = pcmds->cmd_cnt;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_REQ_HS_MODE;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+
+	return 0;
+}
+
+static void mdss_dsi_panel_apply_settings(struct mdss_dsi_ctrl_pdata *ctrl,
+			struct dsi_panel_cmds *pcmds)
+{
+	struct dcs_cmd_req cmdreq;
+	struct mdss_panel_info *pinfo;
+
+	pinfo = &(ctrl->panel_data.panel_info);
+	if (pinfo->dcs_cmd_by_left)
+		if (ctrl->ndx != DSI_CTRL_LEFT)
+		      return;
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = pcmds->cmds;
+	cmdreq.cmds_cnt = pcmds->cmd_cnt;
+	cmdreq.flags = CMD_REQ_COMMIT; // | CMD_CLK_CTRL | CMD_REQ_HS_MODE | CMD_REQ_DMA_TPG;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+}
+
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
 static char led_pwm2[2] = {0x53, 0x20};
 static struct dsi_cmd_desc backlight_cmd[] = {
@@ -1947,6 +1991,9 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		if (ctrl->ndx != DSI_CTRL_LEFT)
 			goto end;
 	}
+
+	if (ctrl->set_hbm)
+		ctrl->set_hbm(ctrl, 0);
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds, CMD_REQ_COMMIT);
@@ -3521,6 +3568,108 @@ exit:
 	return rc;
 }
 
+static int htc_mdss_dsi_parse_brt_bl_table(struct device_node *np,
+		struct mdss_panel_info *panel_info,
+		const char *name)
+{
+	u32 *data;
+	int i, len = 0;
+	struct htc_backlight1_table *brt_bl_table = &panel_info->brt_bl_table;
+
+	data = (u32 *)of_get_property(np, name, &len);
+	len /= sizeof(u32);
+
+	if (!data || len % 2) {
+		pr_debug("%s: read %s failed\n", __func__, name);
+	} else {
+		/* Separate the bl and brt table */
+		len /= 2;
+
+		if (brt_bl_table->size || brt_bl_table->brt_data || brt_bl_table->bl_data) {
+			brt_bl_table->size = 0;
+			kfree(brt_bl_table->brt_data);
+			kfree(brt_bl_table->bl_data);
+		}
+
+		brt_bl_table->brt_data = kzalloc(len * sizeof(u16), GFP_KERNEL);
+		brt_bl_table->bl_data = kzalloc(len * sizeof(u16), GFP_KERNEL);
+		if (!brt_bl_table->brt_data || !brt_bl_table->bl_data) {
+			pr_err("%s:%d, allocate memory failed for %s\n", __func__, __LINE__, name);
+			return 0;
+		}
+
+		for (i = 0; i < len; i++) {
+			brt_bl_table->brt_data[i] = (u16) be32_to_cpup( data + (i * 2));
+			brt_bl_table->bl_data[i] = (u16) be32_to_cpup( data + (i * 2) +1);
+			pr_debug("%s: bl=%d brt=%d i=%d\n", __func__, brt_bl_table->bl_data[i], brt_bl_table->brt_data[i], i);
+		}
+		brt_bl_table->size = len;
+		pr_info("%s: read %s success, brt_bl_table_size=%d\n", __func__, name, brt_bl_table->size);
+	}
+	return 0;
+}
+
+static int mdss_panel_parse_hbm(struct device_node *np,
+				struct mdss_panel_info *pinfo,
+				struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int rc;
+	const char *data;
+
+	pinfo->hbm_state = 0;
+	pinfo->hbm_feature_enabled = 0;
+
+	data = of_get_property(np, "qcom,mdss-dsi-hbm-on-command", NULL);
+	if (!data)
+		return 0;
+
+	rc = mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->hbm_on_cmds,
+				"qcom,mdss-dsi-hbm-on-command", NULL);
+	if (rc) {
+		pr_err("%s : Failed parsing HBM on commands, rc = %d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	rc = mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->hbm_off_cmds,
+				"qcom,mdss-dsi-hbm-off-command", NULL);
+	if (rc) {
+		pr_err("%s : Failed parsing HBM off commands, rc = %d\n",
+			__func__, rc);
+		return rc;
+	}
+	pinfo->hbm_feature_enabled = 1;
+	return 0;
+}
+
+int mdss_dsi_panel_set_hbm(struct mdss_dsi_ctrl_pdata *ctrl, int state)
+{
+	int rc;
+	if (!ctrl->panel_data.panel_info.hbm_feature_enabled) {
+		pr_debug("HBM is disabled, ignore request\n");
+		return 0;
+	}
+
+	if (ctrl->panel_data.panel_info.hbm_state == state) {
+		pr_debug("HBM already in request state %d\n",
+			state);
+		return 0;
+	}
+
+	if (state)
+		rc = mdss_dsi_panel_hbm_cmds_send(ctrl, &ctrl->hbm_on_cmds);
+	else
+		rc = mdss_dsi_panel_hbm_cmds_send(ctrl, &ctrl->hbm_off_cmds);
+
+	if (!rc)
+		ctrl->panel_data.panel_info.hbm_state = state;
+	else
+		pr_err("%s : Failed to set HBM state to %d\n",
+			__func__, state);
+
+	return rc;
+}
+
 static int mdss_panel_parse_dt(struct device_node *np,
 			struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -3752,6 +3901,73 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			MSM_DBA_CHIP_NAME_MAX_LEN);
 	}
 
+	if (mdss_panel_parse_hbm(np, pinfo, ctrl_pdata)) {
+		pr_err("Error parsing HBM\n");
+		goto error;
+	}
+	/*HTC:ADD*/
+	/* Suported brightness transfer for Backlight 1.0*/
+	pinfo->brt_bl_table.size = 0;
+	htc_mdss_dsi_parse_brt_bl_table(np, pinfo, "htc,brt-bl-table");
+
+	/* Suported camera on BL control */
+	rc = of_property_read_u32(np, "htc,mdss-camera-blk", &tmp);
+	pinfo->camera_blk = (!rc ? tmp : MDSS_BL_SETTING_DEF);
+
+	/* Suported CABC mode switch control */
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->cabc_off_cmds,
+		"htc,cabc-off-cmds", "qcom,mdss-dsi-default-command-state");
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->cabc_ui_cmds,
+		"htc,cabc-ui-cmds", "qcom,mdss-dsi-default-command-state");
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->cabc_video_cmds,
+		"htc,cabc-video-cmds", "qcom,mdss-dsi-default-command-state");
+
+	if (of_find_property(np, "htc,color-temp-cmds", NULL)) {
+		color_temp_np = of_parse_phandle(np, "htc,color-temp-cmds", 0);
+
+		if (!color_temp_np) {
+			pr_err("%s:err parsing htc,color-temp-cmds\n", __func__);
+		} else {
+			ctrl_pdata->color_temp_cnt = 0;
+			for (i = 0; i < COLOR_TEMP_MODE; i++) {
+				snprintf(cmd, sizeof(cmd),"htc,color-temp%d-cmds", i);
+				mdss_dsi_parse_dcs_cmds(color_temp_np, &ctrl_pdata->color_temp_cmds[i],
+						cmd, "qcom,mdss-dsi-default-command-state");
+				if (!ctrl_pdata->color_temp_cmds[i].cmds)
+					break;
+				else
+					ctrl_pdata->color_temp_cnt++;
+			}
+		}
+	}
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->color_default_cmds,
+			"htc,color-default-cmds", "qcom,mdss-dsi-default-command-state");
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->color_srgb_cmds,
+			"htc,color-srgb-cmds", "qcom,mdss-dsi-default-command-state");
+
+	/* Suported brust mode switch control */
+	rc = of_property_read_u32(np, "htc,burst-on-level", &tmp);
+	ctrl_pdata->burst_on_level = (!rc ? tmp : 0);
+
+	rc = of_property_read_u32(np, "htc,burst-off-level", &tmp);
+	ctrl_pdata->burst_off_level = (!rc ? tmp : 0);
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->burst_on_cmds,
+		"htc,burst-on-cmds", "qcom,mdss-dsi-default-command-state");
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->burst_off_cmds,
+		"htc,burst-off-cmds", "qcom,mdss-dsi-default-command-state");
+
+	pinfo->power_ctrl = PANEL_POWER_CTRL_DEFAULT;
+	data = of_get_property(np, "htc,dsi_panel_power_control", NULL);
+	if (data) {
+		if (!strcmp(data, "hx8396c2"))
+			pinfo->power_ctrl = PANEL_POWER_CTRL_HX8396C2;
+	}
+	pr_info("%s: Power Control Type=%d\n", __func__, pinfo->power_ctrl);
+
 	return 0;
 
 error:
@@ -3799,7 +4015,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->low_power_config = mdss_dsi_panel_low_power_config;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
-	ctrl_pdata->panel_data.vr_mode_enable = mdss_dsi_panel_enable_R_AID;
+	ctrl_pdata->set_hbm = mdss_dsi_panel_set_hbm;
 
 	if(zte_display_init==0)
 	{

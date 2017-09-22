@@ -417,13 +417,18 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
                    -Wno-bool-compare -Wno-memset-transposed-args \
                    -Wno-maybe-uninitialized \
                    -Wno-array-bounds -Wno-memset-transposed-args \
-		   -Wno-format-truncation -Wno-bool-operation -Wno-stringop-overflow -Wno-stringop-overflow \
+		   -Wno-format-truncation -Wno-bool-operation -Wno-bool-compare \
+		   -Wno-stringop-overflow -Wno-stringop-overflow \
 		   -ffast-math -Wno-multistatement-macros -Wno-duplicate-decl-specifier \
+		   -Wno-memset-elt-size -Wno-format-overflow -fno-store-merging \
 		   -mcpu=cortex-a57.cortex-a53+crc+crypto -mtune=cortex-a57.cortex-a53 \
                    -march=armv8-a+crc \
                    -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
- 		   -fno-aggressive-loop-optimizations \
- 		   -fno-delete-null-pointer-checks
+		   -Wno-discarded-array-qualifiers -Wno-incompatible-pointer-types \
+		   -Wno-return-local-addr -Wno-nonnull -fno-delete-null-pointer-checks \
+		   -fno-aggressive-loop-optimizations \
+		   $(GRAPHITE) \
+                   -std=gnu89
 
 # GCC 6.1 is too strict
 # KBUILD_CFLAGS	+= -Wno-misleading-indentation -Wno-tautological-compare -pipe -fno-pic	   

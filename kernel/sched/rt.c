@@ -345,16 +345,18 @@ static inline int has_pushable_tasks(struct rq *rq)
 	return !plist_head_empty(&rq->rt.pushable_tasks);
 }
 
-static DEFINE_PER_CPU(struct callback_head, rt_balance_head);
+static DEFINE_PER_CPU(struct callback_head, rt_push_head);
+static DEFINE_PER_CPU(struct callback_head, rt_pull_head);
 
 static void push_rt_tasks(struct rq *);
+static void pull_rt_task(struct rq *);
 
 static inline void queue_push_tasks(struct rq *rq)
 {
 	if (!has_pushable_tasks(rq))
 		return;
 
-	queue_balance_callback(rq, &per_cpu(rt_balance_head, rq->cpu),
+	queue_balance_callback(rq, &per_cpu(rt_push_head, rq->cpu),
 		push_rt_tasks);
 }
 
@@ -2101,7 +2103,7 @@ static void switched_from_rt(struct rq *rq, struct task_struct *p)
 	if (!task_on_rq_queued(p) || rq->rt.rt_nr_running)
 		return;
 
-	pull_rt_task(rq);
+	queue_pull_task(rq);
 }
 
 void __init init_sched_rt_class(void)
@@ -2133,9 +2135,10 @@ static void switched_to_rt(struct rq *rq, struct task_struct *p)
 #ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->rt.overloaded)
 			queue_push_tasks(rq);
-#endif /* CONFIG_SMP */
+#else
 		if (p->prio < rq->curr->prio)
 			resched_curr(rq);
+#endif /* CONFIG_SMP */
 	}
 }
 

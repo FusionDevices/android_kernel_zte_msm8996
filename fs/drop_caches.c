@@ -9,7 +9,6 @@
 #include <linux/sysctl.h>
 #include <linux/gfp.h>
 #include <linux/fb.h>
-#include <linux/delay.h>
 #include "internal.h"
 
 /* A global variable is a bit ugly, but it keeps the code simple */
@@ -81,18 +80,15 @@ int drop_caches_sysctl_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-static void drop_caches_suspend(struct work_struct *work);
-static DECLARE_WORK(drop_caches_suspend_work, drop_caches_suspend);
+static void drop_caches_now(struct work_struct *work);
+static DECLARE_WORK(drop_caches_now_work, drop_caches_now);
 
-static void drop_caches_suspend(struct work_struct *work)
+static void drop_caches_now(struct work_struct *work)
 {
-	/* sleep for 200ms */
-	msleep(200);
 	/* sync */
 	emergency_sync();
-	/* echo "3" > /proc/sys/vm/drop_caches */
+	/* echo "1" > /proc/sys/vm/drop_caches */
 	iterate_supers(drop_pagecache_sb, NULL);
-        drop_slab();
 }
 
 static int fb_notifier(struct notifier_block *self,
@@ -104,7 +100,7 @@ static int fb_notifier(struct notifier_block *self,
 		int blank = *(int *)evdata->data;
 
 		if (blank == FB_BLANK_POWERDOWN) {
-			schedule_work_on(0, &drop_caches_suspend_work);
+			schedule_work_on(0, &drop_caches_now_work);
 			return NOTIFY_OK;
 		}
 		return NOTIFY_OK;

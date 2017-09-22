@@ -1094,6 +1094,7 @@ static int qbt1000_read_spi_conn_properties(struct device_node *node,
 						"%s: Failed get %s\n",
 						__func__, clock_name);
 					return rc;
+				}
 			}
 
 			if (!strcmp(clock_name, "spi_clk"))

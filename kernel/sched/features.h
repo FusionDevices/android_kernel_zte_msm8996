@@ -85,16 +85,3 @@ SCHED_FEAT(NUMA_FAVOUR_HIGHER, true)
  */
 SCHED_FEAT(NUMA_RESIST_LOWER, false)
 #endif
-
-/*
- * Energy aware scheduling. Use platform energy model to guide scheduling
- * decisions optimizing for energy efficiency.
- */
-SCHED_FEAT(ENERGY_AWARE, true)
-
-/*
- * SchedTune. Use Performance/Energy filtering function to evaluate the trade
- * off between energy consumption and performance impact when comparing
- * previous and next candidate CPUs.
- */
-SCHED_FEAT(ENERGY_FILTER, false)

@@ -536,8 +536,6 @@ struct perf_cpu_context {
 	raw_spinlock_t			hrtimer_lock;
 	struct hrtimer			hrtimer;
 	ktime_t				hrtimer_interval;
-	unsigned int			hrtimer_active;
-
 	struct pmu			*unique_pmu;
 	struct perf_cgroup		*cgrp;
 };

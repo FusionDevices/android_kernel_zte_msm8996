@@ -1,8 +1,7 @@
 #
 # Makefile for the Linux proc filesystem routines.
 #
-CFLAGS_proc_net.o := -fno-strict-aliasing
-CFLAGS_namespaces.o := -fno-strict-aliasing
+CFLAGS_KERNEL := -fno-strict-aliasing
 
 obj-y   += proc.o
 

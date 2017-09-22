@@ -360,7 +360,7 @@ FLAGS := -mtune=cortex-a57.cortex-a53 -mcpu=cortex-a57.cortex-a53+crypto -mlow-p
 # Make variables (CC, etc...)
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld.bfd
-REAL_CC		= $(CROSS_COMPILE)gcc $(FLAGS)
+CC		= $(CCACHE) $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -387,7 +387,7 @@ LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage -fno-tree-loop-im
-CFLAGS_KCOV	= -fsanitize-coverage=trace-pc
+# CFLAGS_KCOV	= -fsanitize-coverage=trace-pc
 
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
@@ -421,13 +421,13 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -ffast-math -Wno-multistatement-macros -Wno-duplicate-decl-specifier \
 		   -mcpu=cortex-a57.cortex-a53+crc+crypto -mtune=cortex-a57.cortex-a53 \
                    -march=armv8-a+crc \
-                   -fmodulo-sched -fmodulo-sched-allow-regmoves \
                    -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
  		   -fno-aggressive-loop-optimizations \
  		   -fno-delete-null-pointer-checks
 
 # GCC 6.1 is too strict
-KBUILD_CFLAGS	+= -Wno-misleading-indentation -Wno-tautological-compare -pipe -fno-pic -O2 -march=armv8-a+crc
+# KBUILD_CFLAGS	+= -Wno-misleading-indentation -Wno-tautological-compare -pipe -fno-pic	   
+# KBUILD_CFLAGS	+= $(GEN_OPT_FLAGS)
 
 # Snapdragon 820 doesn't need 835769/843419 erratum fixes
 # some toolchain enables those fixes automatically, so opt-out

@@ -345,18 +345,16 @@ static inline int has_pushable_tasks(struct rq *rq)
 	return !plist_head_empty(&rq->rt.pushable_tasks);
 }
 
-static DEFINE_PER_CPU(struct callback_head, rt_push_head);
-static DEFINE_PER_CPU(struct callback_head, rt_pull_head);
+static DEFINE_PER_CPU(struct callback_head, rt_balance_head);
 
 static void push_rt_tasks(struct rq *);
-static void pull_rt_task(struct rq *);
 
 static inline void queue_push_tasks(struct rq *rq)
 {
 	if (!has_pushable_tasks(rq))
 		return;
 
-	queue_balance_callback(rq, &per_cpu(rt_push_head, rq->cpu),
+	queue_balance_callback(rq, &per_cpu(rt_balance_head, rq->cpu),
 		push_rt_tasks);
 }
 

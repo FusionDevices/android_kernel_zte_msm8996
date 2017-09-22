@@ -1342,9 +1342,6 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 
 	do_set_cpus_allowed(p, new_mask);
 
-	/* Can the task run on the task's current CPU? If so, we're done */
-	if (cpumask_test_cpu(task_cpu(p), new_mask))
-		goto out;
 
 	dest_cpu = cpumask_any_and(cpu_active_mask, new_mask);
 	if (task_running(rq, p) || p->state == TASK_WAKING) {

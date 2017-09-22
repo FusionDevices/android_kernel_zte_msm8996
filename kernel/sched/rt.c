@@ -2101,7 +2101,7 @@ static void switched_from_rt(struct rq *rq, struct task_struct *p)
 	if (!task_on_rq_queued(p) || rq->rt.rt_nr_running)
 		return;
 
-	queue_pull_task(rq);
+	pull_rt_task(rq);
 }
 
 void __init init_sched_rt_class(void)

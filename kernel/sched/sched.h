@@ -201,7 +201,7 @@ struct cfs_bandwidth {
 	s64 hierarchical_quota;
 	u64 runtime_expires;
 
-	int idle, period_active;
+	int idle;
 	struct hrtimer period_timer, slack_timer;
 	struct list_head throttled_cfs_rq;
 

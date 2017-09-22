@@ -128,10 +128,13 @@ void su_exit(void)
 
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
-	if (hrtimer_active(period_timer))
-		return;
+	/*
+	 * Do not forward the expiration time of active timers;
+	 * we do not want to loose an overrun.
+	 */
+	if (!hrtimer_active(period_timer))
+		hrtimer_forward_now(period_timer, period);
 
-	hrtimer_forward_now(period_timer, period);
 	hrtimer_start_expires(period_timer, HRTIMER_MODE_ABS_PINNED);
 }
 
